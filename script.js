@@ -1,27 +1,35 @@
 let scrollPosition = 0;
+let lastRSSI = null;
 
-async function connectToBeacon() {
+async function scanForBeacon() {
     try {
         console.log("Scanning for Bluetooth Beacons...");
-        const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: ['battery_service'] // Replace with your beacon's service UUID if known
+        
+        const scan = await navigator.bluetooth.requestLEScan({
+            acceptAllAdvertisements: true
         });
 
-        const server = await device.gatt.connect();
-        console.log("Connected to beacon:", device.name);
-
-        device.addEventListener('advertisementreceived', (event) => {
-            let rssi = event.rssi; // Signal strength (lower means farther)
+        navigator.bluetooth.addEventListener('advertisementreceived', (event) => {
+            let rssi = event.rssi;
             console.log("Beacon RSSI:", rssi);
 
-            if (rssi > -60) { // Strong signal, move up
-                scrollPosition -= 20;
-            } else if (rssi < -75) { // Weak signal, move down
-                scrollPosition += 10;
+            if (lastRSSI !== null) {
+                let change = rssi - lastRSSI;
+
+                // Adjust based on movement sensitivity
+                if (change > 2) { 
+                    scrollPosition -= 10; // Move up when signal strengthens
+                } else if (change < -2) {
+                    scrollPosition += 10; // Move down when signal weakens
+                }
+
+                // Smooth scrolling effect
+                document.getElementById("content").style.transition = "transform 0.3s ease-out";
+                document.getElementById("content").style.transform = `translateY(${scrollPosition}px)`;
             }
 
-            document.getElementById("content").style.transform = `translateY(${scrollPosition}px)`;
+            lastRSSI = rssi; // Store last RSSI to compare movement
+
         });
 
     } catch (error) {
@@ -29,4 +37,7 @@ async function connectToBeacon() {
     }
 }
 
-document.getElementById("connectButton").addEventListener("click", connectToBeacon);
+// Disable scrolling via touch
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+document.getElementById("connectButton").addEventListener("click", scanForBeacon);
