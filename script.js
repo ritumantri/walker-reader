@@ -1,45 +1,64 @@
 let scrollPosition = 0;
-let lastRSSI = null;
+let lastPosition = null;
 
-window.onload = scanForBeacon;
+async function trackMovement() {
+    if (!navigator.geolocation) {
+        console.error("Geolocation is not supported by your browser.");
+        return;
+    }
 
-async function scanForBeacon() {
-    try {
-        console.log("Scanning for Bluetooth Beacons...");
-        
-        const scan = await navigator.bluetooth.requestLEScan({
-            acceptAllAdvertisements: true
-        });
+    navigator.geolocation.watchPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log("Current Position:", latitude, longitude);
 
-        navigator.bluetooth.addEventListener('advertisementreceived', (event) => {
-            let rssi = event.rssi;
-            console.log("Beacon RSSI:", rssi);
+            if (lastPosition) {
+                let distance = getDistanceFromLatLonInMeters(
+                    lastPosition.latitude,
+                    lastPosition.longitude,
+                    latitude,
+                    longitude
+                );
 
-            if (lastRSSI !== null) {
-                let change = rssi - lastRSSI;
+                console.log("Moved:", distance, "meters");
 
-                // Adjust based on movement sensitivity
-                if (change > 2) { 
-                    scrollPosition -= 10; // Move up when signal strengthens
-                } else if (change < -2) {
-                    scrollPosition += 10; // Move down when signal weakens
+                if (distance > 2) {
+                    scrollPosition -= 10; // Move up if walking forward
+                } else if (distance < -2) {
+                    scrollPosition += 10; // Move down if moving backward
                 }
 
-                // Smooth scrolling effect
                 document.getElementById("content").style.transition = "transform 0.3s ease-out";
                 document.getElementById("content").style.transform = `translateY(${scrollPosition}px)`;
             }
 
-            lastRSSI = rssi; // Store last RSSI to compare movement
+            lastPosition = { latitude, longitude };
+        },
+        (error) => {
+            console.error("Geolocation error:", error);
+        },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+    );
+}
 
-        });
+// Function to calculate distance between two GPS points
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-    } catch (error) {
-        console.error("Bluetooth error:", error);
-    }
+    const a =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
 }
 
 // Disable scrolling via touch
 document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
-document.getElementById("connectButton").addEventListener("click", scanForBeacon);
+// Start tracking when the button is clicked
+document.getElementById("connectButton").addEventListener("click", trackMovement);
