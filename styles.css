@@ -19,12 +19,16 @@ body {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
+    z-index: 10;
 }
 
 #content {
     position: absolute;
-    top: 100vh; /* Start below the screen */
+    top: 0; /* Start from the top */
     width: 100%;
     padding: 20px;
     background-color: white;
+    font-size: 60px; /* Make text really big */
+    line-height: 1.5;
+    transition: transform 0.1s ease; /* Smooth scroll effect */
 }
