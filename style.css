@@ -1,0 +1,30 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 20px;
+    margin: 0;
+    overflow: hidden; /* Prevent normal scrolling */
+    height: 100vh;
+}
+
+#connectButton {
+    padding: 10px 20px;
+    font-size: 18px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#content {
+    position: absolute;
+    top: 100vh; /* Start below the screen */
+    width: 100%;
+    padding: 20px;
+    background-color: white;
+}
