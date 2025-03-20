@@ -1,6 +1,8 @@
 let scrollPosition = 0;
 let lastRSSI = null;
 
+window.onload = scanForBeacon;
+
 async function scanForBeacon() {
     try {
         console.log("Scanning for Bluetooth Beacons...");
