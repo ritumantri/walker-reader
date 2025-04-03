@@ -1,13 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Walking Scrub</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Walking Canvas</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    .container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    .background-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      touch-action: none;
+    }
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      z-index: 3;
+      padding: 10px;
+    }
+    .btn {
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 0 5px;
+      border-radius: 20px;
+      font-size: 16px;
+    }
+    .instructions {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      z-index: 3;
+    }
+    .step-counter {
+      position: absolute;
+      top: 80px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      z-index: 3;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    <script src="script.js"></script>
+  <div class="container">
+    <img src="/api/placeholder/1080/1920" alt="Hidden image" class="background-image">
+    <canvas id="overlay"></canvas>
+    <div class="instructions">Walk to reveal the image</div>
+    <div class="step-counter">Steps: <span id="steps">0</span></div>
+    <div class="controls">
+      <button class="btn" id="startBtn">Start Walking</button>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM elements
+      const canvas = document.getElementById('overlay');
+      const startBtn = document.getElementById('startBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const stepsDisplay = document.getElementById('steps');
+      const ctx = canvas.getContext('2d');
+      
+      // Variables
+      let isWalking = false;
+      let stepCount = 0;
+      let lastAcceleration = { x: 0, y: 0, z: 0 };
+      let coverColor = '#3498db'; // Color of the cover layer
+      
+      // Initialize canvas size
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        drawCover();
+      }
+
+      // Draw the full cover
+      function drawCover() {
+        ctx.fillStyle = coverColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Erase part of the cover to reveal image
+      function reveal(x, y, radius = 40) {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2, false);
+        ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      // Reset the canvas
+      function resetCanvas() {
+        stepCount = 0;
+        stepsDisplay.textContent = stepCount;
+        drawCover();
+        isWalking = false;
+        startBtn.textContent = 'Start Walking';
+      }
+
+      // Step detection using accelerometer
+      function detectStep(event) {
+        const acceleration = event.accelerationIncludingGravity;
+        
+        if (!acceleration) {
+          console.log('Accelerometer data not available');
+          return;
+        }
+        
+        // Calculate the magnitude of acceleration change
+        const deltaX = Math.abs(acceleration.x - lastAcceleration.x);
+        const deltaY = Math.abs(acceleration.y - lastAcceleration.y);
+        const deltaZ = Math.abs(acceleration.z - lastAcceleration.z);
+        
+        const accelerationDelta = Math.sqrt(deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ);
+        
+        // If the change is large enough, count it as a step
+        if (accelerationDelta > 10) { // Threshold can be adjusted
+          stepCount++;
+          stepsDisplay.textContent = stepCount;
+          
+          // Reveal a random spot on the canvas
+          const x = Math.random() * canvas.width;
+          const y = Math.random() * canvas.height;
+          reveal(x, y);
+          
+          // Prevent counting multiple steps from the same movement
+          setTimeout(() => {
+            lastAcceleration = { 
+              x: acceleration.x, 
+              y: acceleration.y, 
+              z: acceleration.z 
+            };
+          }, 300);
+        }
+      }
+
+      // Toggle walking mode
+      function toggleWalking() {
+        isWalking = !isWalking;
+        
+        if (isWalking) {
+          startBtn.textContent = 'Pause';
+          window.addEventListener('devicemotion', detectStep);
+        } else {
+          startBtn.textContent = 'Resume';
+          window.removeEventListener('devicemotion', detectStep);
+        }
+      }
+
+      // Initialize
+      window.addEventListener('resize', resizeCanvas);
+      startBtn.addEventListener('click', () => {
+        // Request permission for motion sensors on iOS
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+          DeviceMotionEvent.requestPermission()
+            .then(permissionState => {
+              if (permissionState === 'granted') {
+                toggleWalking();
+              } else {
+                alert('Motion sensor permission is required to track steps');
+              }
+            })
+            .catch(console.error);
+        } else {
+          // For non-iOS devices
+          toggleWalking();
+        }
+      });
+      
+      resetBtn.addEventListener('click', resetCanvas);
+      
+      // Handle manual reveal through touch (for testing)
+      canvas.addEventListener('pointerdown', function(e) {
+        reveal(e.clientX, e.clientY);
+      });
+      
+      canvas.addEventListener('pointermove', function(e) {
+        if (e.buttons === 1) {
+          reveal(e.clientX, e.clientY, 30);
+        }
+      });
+      
+      // Initial setup
+      resizeCanvas();
+    });
+  </script>
 </body>
 </html>
